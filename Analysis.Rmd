@@ -1,0 +1,92 @@
+---
+title: "Weight Lifting Prediction"
+author: "Kyle Safran"
+date: "January 28, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = FALSE, message = FALSE, warning = FALSE)
+```
+
+## Introduction and Setup
+
+We hope to predict the way a weight lifter performed an exercise using different measurements taken during the movement. First we need to clean up the data a bit. These measurements are all numeric, but some are currently stored as factors. Also, a lot of variables contain plenty of missing values.
+
+After taking a look at the data, there are multiple roll, yaw, and pitch variables, that should help us determine how the exercise was done. We will use these variables (if they have no missing values) to predict the classe variable.
+
+```{r data load and clean, message = FALSE, error = FALSE}
+library(dplyr)
+library(caret)
+train.data <- read.csv('pml-training.csv')
+test.data <- read.csv('pml-testing.csv')
+
+# yaw, pitch, and roll should be important, let's use those variables
+train.data <- train.data %>% 
+  select(contains('roll'),
+         contains('yaw'),
+         contains('pitch'),
+         classe)
+
+# Some variables need to be make numeric
+train.data[, -101] <- lapply(train.data[,-101], function(x) as.numeric(as.character(x)))
+
+
+# we will keep around the columns that don't have missing values
+is.missing <- sapply(train.data, function(x) sum(is.na(x)))
+train.data <- train.data[, !is.missing]
+
+
+```
+
+## Methodology
+Now we need to split our training data into two portions. On the first portion we will fit our first models, which we will cross-validate on the second portion. Our accuracy on the second portion of the training data will give us an estimate of the out of sample accuracy of our model.
+
+First, we need to build the models. We will try a random forest, a support vector machine, and a gbm.
+
+```{r original fit}
+set.seed(0)
+rands <- runif(nrow(train.data))
+train.ind <- rands < 0.7
+test.ind <- !train.ind
+
+library(randomForest)
+rand.forest <- randomForest(classe ~ ., data = train.data[train.ind,])
+library(e1071)
+svm.model <- svm(classe ~ ., data = train.data[train.ind,])
+library(gbm)
+gbm <- gbm(classe ~ ., data = train.data[train.ind,])
+
+```
+
+### Cross Validation
+
+Now we will compare the model output on the testing portion of our training data to select which one we will use.
+
+```{r cross validate}
+prediction.df <- data.frame(actuals = train.data$classe[test.ind],
+                            pred.rf = predict(rand.forest, newdata = train.data[test.ind,]),
+                            pred.svm = predict(svm.model, newdata = train.data[test.ind,]))
+
+raw.gbm.pred <- predict(gbm, newdata = train.data[test.ind,], n.trees = 100, type = 'response')
+prediction.df$pred.gbm <- LETTERS[apply(raw.gbm.pred, 1, which.max)]
+rf.acc <- confusionMatrix(prediction.df$pred.rf, prediction.df$actuals)$overall[1]
+svm.acc <- confusionMatrix(prediction.df$pred.svm, prediction.df$actuals)$overall[1]
+gbm.acc <- confusionMatrix(prediction.df$pred.gbm, prediction.df$actuals)$overall[1]
+
+sprintf('Random Forest Accuracy: %.3f', rf.acc)
+sprintf('SVM Accuracy: %.3f', svm.acc)
+sprintf('GBM Accuracy: %.3f', gbm.acc)
+
+```
+
+The random forest has highest accuracy. We estimate that the out of sample accuracy of this model will be `r sprintf('%.3f', rf.acc)`. We will need to refit on the full training set, then we can make our test predictions.
+
+# Refit and Predict
+
+```{r refit}
+final.rf <- randomForest(classe ~ ., data = train.data)
+
+test.predictions <- predict(final.rf, newdata = test.data)
+write.csv(test.predictions, 'test_output.csv', row.names = FALSE)
+```
