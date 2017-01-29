@@ -1,0 +1,8 @@
+name: Publish Document
+title:
+account: rpubs
+server: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/245420/19f7591748cf4d3eb5129ff009c7c44f
+bundleId: https://api.rpubs.com/api/v1/document/245420/19f7591748cf4d3eb5129ff009c7c44f
+url: http://rpubs.com/ksafran/245420
+when: 1485706871.11316

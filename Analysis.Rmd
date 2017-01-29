@@ -80,7 +80,7 @@ sprintf('GBM Accuracy: %.3f', gbm.acc)
 
 ```
 
-The random forest has highest accuracy. We estimate that the out of sample accuracy of this model will be `r sprintf('%.3f', rf.acc)`. We will need to refit on the full training set, then we can make our test predictions.
+The random forest has highest accuracy. We estimate that the out of sample accuracy of this model will be `r sprintf('%.3f', rf.acc)`, so our out of sample error rate will be `r sprintf('%.3f', 1 -  rf.acc)`. We will need to refit on the full training set, then we can make our test predictions.
 
 # Refit and Predict
 
